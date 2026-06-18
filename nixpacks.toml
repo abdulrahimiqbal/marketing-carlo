@@ -1,0 +1,12 @@
+# Explicit build phases for Railway's Nixpacks builder. `npm ci` installs dev
+# dependencies (Vite, TypeScript) needed to build; the build output is served by
+# server.js at runtime, which only needs `express` from dependencies.
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"
