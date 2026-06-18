@@ -52,6 +52,8 @@ export interface CanvasState {
   nodeResults: Record<string, ChannelResults>;
   summary: CampaignSummary;
   selectedNodeId: string | null;
+  /** Increments on every recompute — lets the UI reflect each real re-simulation. */
+  simSeq: number;
 
   // derived recompute
   recompute: () => void;
@@ -85,11 +87,12 @@ export const useStore = create<CanvasState>((set, get) => ({
   nodeResults: initialSim.nodeResults,
   summary: initialSim.summary,
   selectedNodeId: null,
+  simSeq: 0,
 
   recompute: () => {
-    const { project } = get();
+    const { project, simSeq } = get();
     const { nodeResults, summary } = simulateCampaign(project.nodes);
-    set({ nodeResults, summary });
+    set({ nodeResults, summary, simSeq: simSeq + 1 });
   },
 
   addNode: (type) => {
@@ -164,20 +167,19 @@ export const useStore = create<CanvasState>((set, get) => ({
   },
 
   resetAssumptionToBenchmark: (id, key) => {
-    set((state) => {
-      const bench = benchmarkFor(state.project.vertical, key);
-      if (!bench) return state;
-      return {
-        project: {
-          ...state.project,
-          nodes: mapNode(state.project.nodes, id, (n) => ({
-            ...n,
-            assumptions: { ...n.assumptions, [key]: bench },
-          })),
-          updatedAt: nowIso(),
-        },
-      };
-    });
+    set((state) => ({
+      project: {
+        ...state.project,
+        nodes: mapNode(state.project.nodes, id, (n) => ({
+          ...n,
+          assumptions: {
+            ...n.assumptions,
+            [key]: benchmarkFor(n.type, state.project.vertical, key),
+          },
+        })),
+        updatedAt: nowIso(),
+      },
+    }));
     get().recompute();
   },
 

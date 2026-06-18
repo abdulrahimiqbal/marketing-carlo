@@ -2,7 +2,30 @@
 
 export type Vertical = 'b2b_saas' | 'consumer_app' | 'ecommerce';
 
-export type ChannelType = 'meta_ads' | 'google_search' | 'x_organic';
+export type ChannelType =
+  // Paid — CPM auction (impressions → clicks)
+  | 'meta_ads'
+  | 'tiktok_ads'
+  | 'linkedin_ads'
+  | 'reddit_ads'
+  // Paid — CPC (clicks bought directly)
+  | 'google_search'
+  | 'bing_ads'
+  // Organic — owned reach (followers × reach × posts)
+  | 'x_organic'
+  | 'linkedin_organic'
+  | 'instagram_organic'
+  | 'tiktok_organic'
+  // Owned list — email
+  | 'newsletter'
+  // Paid — flat sponsorship (fixed reach for a fixed fee)
+  | 'influencer';
+
+/** How the entry stage turns inputs into visitors. */
+export type FunnelArchetype = 'cpm' | 'cpc' | 'organic_reach' | 'email' | 'flat_reach';
+
+/** Grouping for the channel picker. */
+export type ChannelGroup = 'paid' | 'organic' | 'email';
 
 /**
  * Confidence states (§8). `simulated_behavioral` is RESERVED for the v2
@@ -89,4 +112,34 @@ export interface CampaignSummary {
 export interface SimulationOutput {
   nodeResults: Record<string, ChannelResults>; // keyed by node id
   summary: CampaignSummary;
+}
+
+/** One histogram bin of the Monte Carlo output distribution. */
+export interface HistogramBin {
+  x0: number; // bin lower edge
+  x1: number; // bin upper edge
+  count: number; // draws in this bin
+}
+
+/** How much one assumption drives the spread of the outcome (§ sensitivity). */
+export interface SensitivityEntry {
+  key: string;
+  /** Fraction of the total P10–P90 spread removed by pinning this assumption (0..1). */
+  contribution: number;
+}
+
+/**
+ * Rich, on-demand detail for a single selected node — the actual shape of the
+ * 2,000-draw paying-users distribution plus a variance-based sensitivity rank.
+ * This exposes what the engine really did; it is not decoration.
+ */
+export interface NodeDetail {
+  draws: number; // N
+  histogram: HistogramBin[]; // paying users distribution
+  mean: number;
+  range: Range; // paying users P10/P50/P90 (matches results)
+  /** (P90 − P10) / P50 — how wide the range is relative to the typical outcome. */
+  relativeSpread: number;
+  /** Assumptions ranked by how much each drives the uncertainty. */
+  sensitivity: SensitivityEntry[];
 }

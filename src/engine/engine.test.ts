@@ -1,10 +1,16 @@
 // §14 acceptance criteria for the engine. Must pass before any UI.
 import { describe, it, expect } from 'vitest';
 import { sampleTriangular, mulberry32, hashString } from './rng';
-import { runFunnel, CHANNEL_META } from './funnel';
-import { simulateNode, simulateNodeDraws, simulateCampaign, N_DRAWS } from './simulate';
+import { runFunnel, CHANNEL_META, isPaid } from './funnel';
+import {
+  simulateNode,
+  simulateNodeDraws,
+  simulateCampaign,
+  simulateNodeDetail,
+  N_DRAWS,
+} from './simulate';
 import type { ChannelNode } from './types';
-import { createChannelNode } from '../benchmarks/presets';
+import { createChannelNode, CHANNEL_TYPES } from '../benchmarks/presets';
 
 describe('sampleTriangular (§5.4)', () => {
   it('returns the point when low == mode == high', () => {
@@ -199,5 +205,93 @@ describe('runFunnel basic shape', () => {
     expect(d.visitors).toBeGreaterThanOrEqual(d.signups);
     expect(d.signups).toBeGreaterThanOrEqual(d.payingUsers);
     expect(d.payingUsers).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('Expanded channel library', () => {
+  it('every channel seeds a node that simulates to a finite, ordered funnel', () => {
+    for (const type of CHANNEL_TYPES) {
+      const node = createChannelNode(type, 'b2b_saas', { x: 0, y: 0 }, `seed-${type}`);
+      const r = simulateNode(node);
+      expect(Number.isFinite(r.payingUsers.p50)).toBe(true);
+      expect(r.visitors.p50).toBeGreaterThanOrEqual(r.signups.p50);
+      expect(r.signups.p50).toBeGreaterThanOrEqual(r.payingUsers.p50);
+      expect(r.payingUsers.p10).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('newsletter (email) uses list × open × click, spend 0, no cost band', () => {
+    const node: ChannelNode = {
+      id: 'nl1',
+      type: 'newsletter',
+      label: 'Email',
+      position: { x: 0, y: 0 },
+      fixedInputs: { listSize: 10000 },
+      assumptions: {
+        openRate: { low: 0.4, expected: 0.4, high: 0.4 },
+        clickRate: { low: 0.05, expected: 0.05, high: 0.05 },
+        signupRate: { low: 0.1, expected: 0.1, high: 0.1 },
+        paidConversionRate: { low: 0.03, expected: 0.03, high: 0.03 },
+      },
+    };
+    const r = simulateNode(node);
+    expect(r.visitors.p50).toBeCloseTo(200, 4); // 10000 * 0.4 * 0.05
+    expect(r.totalSpend).toBe(0);
+    expect(r.costPerPayingUser).toBeUndefined();
+    expect(r.confidence).toBe('estimated');
+    expect(isPaid('newsletter')).toBe(false);
+  });
+
+  it('influencer (flat reach) spend = fee and has a cost-per-paying band', () => {
+    const node = createChannelNode('influencer', 'b2b_saas', { x: 0, y: 0 }, 'inf1');
+    const r = simulateNode(node);
+    expect(r.totalSpend).toBe(500); // the fixed `cost` fee, not a budget
+    expect(isPaid('influencer')).toBe(true);
+    expect(r.costPerPayingUser).toBeDefined();
+    expect(r.confidence).toBe('estimated_high_variance');
+  });
+});
+
+describe('Node detail (distribution + sensitivity)', () => {
+  const node = createChannelNode('meta_ads', 'b2b_saas', { x: 0, y: 0 }, 'detail1');
+
+  it('histogram counts sum to N and the range matches the results', () => {
+    const detail = simulateNodeDetail(node);
+    const total = detail.histogram.reduce((acc, b) => acc + b.count, 0);
+    expect(total).toBe(N_DRAWS);
+    expect(detail.range.p10).toBeLessThan(detail.range.p50);
+    expect(detail.range.p50).toBeLessThan(detail.range.p90);
+    expect(detail.mean).toBeGreaterThan(0);
+    expect(detail.relativeSpread).toBeGreaterThan(0);
+  });
+
+  it('sensitivity contributions are shares in [0,1] that sum to ~1', () => {
+    const detail = simulateNodeDetail(node);
+    let sum = 0;
+    for (const s of detail.sensitivity) {
+      expect(s.contribution).toBeGreaterThanOrEqual(0);
+      expect(s.contribution).toBeLessThanOrEqual(1);
+      sum += s.contribution;
+    }
+    expect(sum).toBeCloseTo(1, 5);
+  });
+
+  it('the only assumption with spread dominates the sensitivity', () => {
+    // CPC is the sole uncertain input; the rest are pinned to points.
+    const g: ChannelNode = {
+      id: 'g-sens',
+      type: 'google_search',
+      label: 'G',
+      position: { x: 0, y: 0 },
+      fixedInputs: { budget: 1000 },
+      assumptions: {
+        cpc: { low: 1, expected: 3, high: 8 },
+        signupRate: { low: 0.05, expected: 0.05, high: 0.05 },
+        paidConversionRate: { low: 0.03, expected: 0.03, high: 0.03 },
+      },
+    };
+    const detail = simulateNodeDetail(g);
+    expect(detail.sensitivity[0].key).toBe('cpc');
+    expect(detail.sensitivity[0].contribution).toBeCloseTo(1, 5);
   });
 });

@@ -13,14 +13,22 @@ estimate without showing the seam.
 
 ## What's in v1
 
-A single **deterministic funnel engine** applied across all channels (Meta Ads, Google Search, X
-organic), with channel-tuned, benchmark-seeded assumptions and a **Monte Carlo range** (2,000
-draws, triangular distributions, seeded RNG for reproducibility).
+A single **deterministic funnel engine** applied across a **12-channel library**, with channel-tuned,
+benchmark-seeded assumptions and a **Monte Carlo range** (2,000 draws, triangular distributions,
+seeded RNG for reproducibility).
 
+- **Channel library** — Paid: Meta, TikTok, LinkedIn, Reddit (CPM), Google, Bing (CPC), Influencer
+  (flat sponsorship). Organic: X, LinkedIn, Instagram, TikTok. Owned: Newsletter / email. New
+  channels are data, not code — each maps to a funnel archetype (CPM / CPC / reach / email /
+  flat-reach).
 - **Honest ranges** — every result is reported as P10 / P50 / P90, never a lone integer.
-- **Confidence badges** — paid channels are "Estimated · assumption-based"; organic is
-  "Estimated · high variance." Badges describe what the engine _actually did_.
-- **The paid/organic seam** — campaign totals always show paid and organic subtotals separately.
+- **See the engine work** — each node shows the real **distribution** of its 2,000 draws and a
+  **sensitivity** rank ("what drives the uncertainty" — pin that first). A live status reflects each
+  re-simulation, and a "How it works" panel explains the method (and its limits) in plain language.
+- **Confidence badges** — describe what the engine _actually did_, per channel: paid ads and email
+  are "Estimated · assumption-based"; organic reach and influencer are "Estimated · high variance."
+- **The paid/organic seam** — campaign totals always show paid and free (organic + owned) subtotals
+  separately; never blended into one number.
 - **Manual actuals** — after launch, enter real numbers for an honest estimate-vs-actual
   side-by-side.
 - **Data safety** — an error boundary so a runtime error can't white-screen the app, plus JSON
