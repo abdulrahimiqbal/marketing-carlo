@@ -1,6 +1,7 @@
 // Canvas empty state (§7.1) — now showcases the grouped channel library.
 import { useStore } from '../state/store';
 import { ChannelIcon } from './ChannelIcon';
+import { track } from '../lib/analytics';
 import { CHANNEL_GROUPS, CHANNEL_SHORT_LABELS, CHANNEL_LABELS } from '../benchmarks/presets';
 
 export function EmptyState() {
@@ -27,7 +28,10 @@ export function EmptyState() {
                 {g.types.map((type) => (
                   <button
                     key={type}
-                    onClick={() => addNode(type)}
+                    onClick={() => {
+                      addNode(type);
+                      track('channel_added', { type, source: 'empty_state' });
+                    }}
                     title={`Add ${CHANNEL_LABELS[type]}`}
                     className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50"
                   >

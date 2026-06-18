@@ -10,6 +10,7 @@ import { CampaignSummary } from './components/CampaignSummary';
 import { ConfidenceBadge } from './components/ConfidenceBadge';
 import { Toolbar } from './components/Toolbar';
 import { useStore } from './state/store';
+import { encodeProject, loadSharedProject, clearShareHash } from './lib/share';
 
 // Recharts' ResponsiveContainer needs ResizeObserver.
 class RO {
@@ -44,9 +45,21 @@ describe('Channel picker (grouped, §expansion)', () => {
     render(<Toolbar />);
     fireEvent.click(screen.getByText('Add channel'));
     expect(screen.getByText('LinkedIn Ads')).toBeTruthy();
-    expect(screen.getByText('Reddit Ads')).toBeTruthy();
-    expect(screen.getByText('Bing Ads')).toBeTruthy();
-    expect(screen.getByText('Instagram Organic')).toBeTruthy();
+    expect(screen.getByText('YouTube Ads')).toBeTruthy();
+    expect(screen.getByText('SEO / Content')).toBeTruthy();
+    expect(screen.getByText('Cold Email')).toBeTruthy();
+    expect(screen.getByText('Product Hunt')).toBeTruthy();
+  });
+});
+
+describe('Shareable links', () => {
+  it('round-trips a project through the URL hash and clears it', () => {
+    const project = useStore.getState().project;
+    window.location.hash = `#p=${encodeProject(project)}`;
+    expect(loadSharedProject()?.id).toBe(project.id);
+    clearShareHash();
+    expect(window.location.hash).toBe('');
+    expect(loadSharedProject()).toBeNull();
   });
 });
 

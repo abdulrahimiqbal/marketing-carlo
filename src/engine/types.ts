@@ -8,6 +8,9 @@ export type ChannelType =
   | 'tiktok_ads'
   | 'linkedin_ads'
   | 'reddit_ads'
+  | 'youtube_ads'
+  | 'pinterest_ads'
+  | 'snapchat_ads'
   // Paid — CPC (clicks bought directly)
   | 'google_search'
   | 'bing_ads'
@@ -16,13 +19,23 @@ export type ChannelType =
   | 'linkedin_organic'
   | 'instagram_organic'
   | 'tiktok_organic'
+  // Organic — earned (launch spike, search)
+  | 'product_hunt'
+  | 'seo_content'
   // Owned list — email
   | 'newsletter'
+  | 'cold_email'
   // Paid — flat sponsorship (fixed reach for a fixed fee)
   | 'influencer';
 
 /** How the entry stage turns inputs into visitors. */
-export type FunnelArchetype = 'cpm' | 'cpc' | 'organic_reach' | 'email' | 'flat_reach';
+export type FunnelArchetype =
+  | 'cpm'
+  | 'cpc'
+  | 'organic_reach'
+  | 'email'
+  | 'flat_reach'
+  | 'search_volume';
 
 /** Grouping for the channel picker. */
 export type ChannelGroup = 'paid' | 'organic' | 'email';

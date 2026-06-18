@@ -15,6 +15,7 @@ import { simulateCampaign } from '../engine/simulate';
 import { createChannelNode, benchmarkFor } from '../benchmarks/presets';
 import { genId } from '../lib/id';
 import { loadProject, saveProjectDebounced } from './persistence';
+import { loadSharedProject, clearShareHash } from '../lib/share';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -79,7 +80,11 @@ export interface CanvasState {
   importProject: (project: Project) => void;
 }
 
-const initialProject = loadProject() ?? createDefaultProject();
+// A shared link (URL hash) wins over local storage; clear it so refresh/edits
+// don't reload the shared copy over the user's subsequent work.
+const sharedProject = loadSharedProject();
+if (sharedProject) clearShareHash();
+const initialProject = sharedProject ?? loadProject() ?? createDefaultProject();
 const initialSim = simulateCampaign(initialProject.nodes);
 
 export const useStore = create<CanvasState>((set, get) => ({

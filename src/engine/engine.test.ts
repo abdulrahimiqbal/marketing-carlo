@@ -209,6 +209,37 @@ describe('runFunnel basic shape', () => {
 });
 
 describe('Expanded channel library', () => {
+  it('exposes the full 18-channel library', () => {
+    expect(CHANNEL_TYPES).toHaveLength(18);
+  });
+
+  it('seo_content uses search volume × click share (search_volume archetype)', () => {
+    const node: ChannelNode = {
+      id: 'seo1',
+      type: 'seo_content',
+      label: 'SEO',
+      position: { x: 0, y: 0 },
+      fixedInputs: { searchVolume: 10000 },
+      assumptions: {
+        rankCtr: { low: 0.03, expected: 0.03, high: 0.03 },
+        signupRate: { low: 0.05, expected: 0.05, high: 0.05 },
+        paidConversionRate: { low: 0.03, expected: 0.03, high: 0.03 },
+      },
+    };
+    const r = simulateNode(node);
+    expect(r.visitors.p50).toBeCloseTo(300, 4); // 10000 * 0.03
+    expect(r.totalSpend).toBe(0);
+    expect(r.confidence).toBe('estimated_high_variance');
+  });
+
+  it('product_hunt is a free flat-reach channel (no spend, no cost band)', () => {
+    const node = createChannelNode('product_hunt', 'b2b_saas', { x: 0, y: 0 }, 'ph1');
+    const r = simulateNode(node);
+    expect(r.totalSpend).toBe(0);
+    expect(isPaid('product_hunt')).toBe(false);
+    expect(r.costPerPayingUser).toBeUndefined();
+  });
+
   it('every channel seeds a node that simulates to a finite, ordered funnel', () => {
     for (const type of CHANNEL_TYPES) {
       const node = createChannelNode(type, 'b2b_saas', { x: 0, y: 0 }, `seed-${type}`);

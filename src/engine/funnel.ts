@@ -53,6 +53,9 @@ export const CHANNEL_META: Record<ChannelType, ChannelDef> = {
   tiktok_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
   linkedin_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
   reddit_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
+  youtube_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
+  pinterest_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
+  snapchat_ads: { ...CPM, group: 'paid', confidence: 'estimated' },
   // Paid — CPC
   google_search: { ...CPC, group: 'paid', confidence: 'estimated' },
   bing_ads: { ...CPC, group: 'paid', confidence: 'estimated' },
@@ -61,8 +64,34 @@ export const CHANNEL_META: Record<ChannelType, ChannelDef> = {
   linkedin_organic: { ...REACH, group: 'organic', confidence: 'estimated_high_variance' },
   instagram_organic: { ...REACH, group: 'organic', confidence: 'estimated_high_variance' },
   tiktok_organic: { ...REACH, group: 'organic', confidence: 'estimated_high_variance' },
+  // Organic — earned: a launch-day spike (flat reach, free).
+  product_hunt: {
+    group: 'organic',
+    archetype: 'flat_reach',
+    spendInput: null,
+    fixedInputs: ['reach'],
+    assumptionKeys: ['linkCtr', ...DOWNSTREAM],
+    confidence: 'estimated_high_variance',
+  },
+  // Organic — earned: SEO / content (search volume × your click share).
+  seo_content: {
+    group: 'organic',
+    archetype: 'search_volume',
+    spendInput: null,
+    fixedInputs: ['searchVolume'],
+    assumptionKeys: ['rankCtr', ...DOWNSTREAM],
+    confidence: 'estimated_high_variance',
+  },
   // Owned list — email (knowable list → assumption-based)
   newsletter: {
+    group: 'email',
+    archetype: 'email',
+    spendInput: null,
+    fixedInputs: ['listSize'],
+    assumptionKeys: ['openRate', 'clickRate', ...DOWNSTREAM],
+    confidence: 'estimated',
+  },
+  cold_email: {
     group: 'email',
     archetype: 'email',
     spendInput: null,
@@ -127,6 +156,9 @@ export function runEntryStage(
     case 'flat_reach':
       // visitors = reach * linkCtr (reach and fee are fixed)
       return (fixed.reach ?? 0) * s.linkCtr;
+    case 'search_volume':
+      // visitors = monthly search volume * your click share
+      return (fixed.searchVolume ?? 0) * s.rankCtr;
   }
 }
 

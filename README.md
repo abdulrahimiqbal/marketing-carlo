@@ -13,14 +13,16 @@ estimate without showing the seam.
 
 ## What's in v1
 
-A single **deterministic funnel engine** applied across a **12-channel library**, with channel-tuned,
+A single **deterministic funnel engine** applied across an **18-channel library**, with channel-tuned,
 benchmark-seeded assumptions and a **Monte Carlo range** (2,000 draws, triangular distributions,
 seeded RNG for reproducibility).
 
-- **Channel library** — Paid: Meta, TikTok, LinkedIn, Reddit (CPM), Google, Bing (CPC), Influencer
-  (flat sponsorship). Organic: X, LinkedIn, Instagram, TikTok. Owned: Newsletter / email. New
-  channels are data, not code — each maps to a funnel archetype (CPM / CPC / reach / email /
-  flat-reach).
+- **Channel library** — Paid: Meta, TikTok, LinkedIn, Reddit, YouTube, Pinterest, Snapchat (CPM),
+  Google, Bing (CPC), Influencer (flat sponsorship). Organic: X, LinkedIn, Instagram, TikTok,
+  Product Hunt (launch spike), SEO / Content. Owned: Newsletter, Cold email. New channels are data,
+  not code — each maps to a funnel archetype (CPM / CPC / reach / email / flat-reach / search-volume).
+- **Shareable links** — encode a whole campaign into the URL hash to share or bookmark across
+  devices, no backend required.
 - **Honest ranges** — every result is reported as P10 / P50 / P90, never a lone integer.
 - **See the engine work** — each node shows the real **distribution** of its 2,000 draws and a
   **sensitivity** rank ("what drives the uncertainty" — pin that first). A live status reflects each
@@ -98,7 +100,16 @@ alongside `npm run dev` (Vite proxies `/api` to the local server).
 
 > **Why a server at all?** The PRD targeted Vercel static hosting. Railway runs a process rather
 > than serving a static directory, so we add a minimal static file server. The application logic is
-> still 100% client-side — `server.js` only serves files.
+> still 100% client-side — `server.js` only serves files (plus the optional message-check route).
+
+### Operations
+
+- **Security headers** — `server.js` sets a tight Content-Security-Policy, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, and HSTS, and disables `X-Powered-By`.
+- **Analytics / error monitoring** — `src/lib/analytics.ts` is a no-op hook point. To enable a
+  provider (Plausible, PostHog, Sentry, …) wire it there and add its domain to the CSP `script-src` /
+  `connect-src` in `server.js`. `track()` already fires on key events; `reportError()` is called by
+  the error boundary.
 
 ### Manual deploy via the Railway CLI (optional)
 

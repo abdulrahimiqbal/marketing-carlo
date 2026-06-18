@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { downloadProject, readProjectFile } from '../lib/projectFile';
+import { shareUrl } from '../lib/share';
+import { track } from '../lib/analytics';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function ProjectActions() {
@@ -13,6 +15,7 @@ export function ProjectActions() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleImport = async (file: File | undefined) => {
     if (!file) return;
@@ -21,6 +24,18 @@ export function ProjectActions() {
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed.');
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl(project));
+      track('shared', { channels: project.nodes.length });
+      setError(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError('Could not copy the link to your clipboard.');
     }
   };
 
@@ -38,6 +53,9 @@ export function ProjectActions() {
           className="hover:text-indigo-600 hover:underline"
         >
           Import
+        </button>
+        <button onClick={handleShare} className="hover:text-indigo-600 hover:underline">
+          {copied ? 'Link copied!' : 'Share'}
         </button>
         <button
           onClick={() => setConfirmReset(true)}

@@ -11,6 +11,32 @@ const distDir = join(__dirname, 'dist');
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+app.disable('x-powered-by');
+
+// Baseline security headers. The app is a self-contained SPA + same-origin API,
+// so the CSP can be tight (inline styles are needed for React/Recharts).
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "img-src 'self' data:",
+      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
+      "connect-src 'self'",
+      "font-src 'self' data:",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join('; '),
+  );
+  next();
+});
 
 // Health check for Railway.
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));

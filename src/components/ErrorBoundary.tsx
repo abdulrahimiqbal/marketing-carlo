@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { clearStoredProject } from '../state/persistence';
+import { reportError } from '../lib/analytics';
 
 interface Props {
   children: ReactNode;
@@ -17,8 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // eslint-disable-next-line no-console
-    console.error('Campaign Canvas crashed:', error, info);
+    reportError(error, { componentStack: info.componentStack ?? '' });
   }
 
   render() {

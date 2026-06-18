@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { CHANNEL_GROUPS, CHANNEL_LABELS } from '../benchmarks/presets';
+import { track } from '../lib/analytics';
 import { ChannelIcon } from './ChannelIcon';
 
 export function AddChannelMenu() {
@@ -45,6 +46,7 @@ export function AddChannelMenu() {
                   key={type}
                   onClick={() => {
                     addNode(type);
+                    track('channel_added', { type, source: 'toolbar' });
                     setOpen(false);
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-indigo-50"

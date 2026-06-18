@@ -61,6 +61,9 @@ export const ENTRY_BENCHMARKS: Record<ChannelType, PerVertical> = {
   tiktok_ads: flat({ cpm: u(4, 8, 14), ctr: u(0.008, 0.012, 0.018) }),
   linkedin_ads: flat({ cpm: u(25, 45, 75), ctr: u(0.004, 0.006, 0.01) }),
   reddit_ads: flat({ cpm: u(3, 6, 11), ctr: u(0.003, 0.006, 0.011) }),
+  youtube_ads: flat({ cpm: u(6, 12, 22), ctr: u(0.004, 0.007, 0.012) }),
+  pinterest_ads: flat({ cpm: u(3, 6, 12), ctr: u(0.002, 0.005, 0.01) }),
+  snapchat_ads: flat({ cpm: u(2, 5, 9), ctr: u(0.005, 0.009, 0.016) }),
 
   // Added paid CPC channel.
   bing_ads: flat({ cpc: u(0.8, 1.6, 3.2) }),
@@ -70,8 +73,13 @@ export const ENTRY_BENCHMARKS: Record<ChannelType, PerVertical> = {
   instagram_organic: flat({ reachRate: u(0.05, 0.12, 0.3), linkCtr: u(0.003, 0.008, 0.018) }),
   tiktok_organic: flat({ reachRate: u(0.1, 0.25, 0.8), linkCtr: u(0.004, 0.01, 0.025) }),
 
-  // Email to an owned list.
+  // Earned: launch-day spike + SEO/content.
+  product_hunt: flat({ linkCtr: u(0.02, 0.05, 0.12) }),
+  seo_content: flat({ rankCtr: u(0.01, 0.03, 0.08) }),
+
+  // Email to an owned list (warm) vs a cold prospect list.
   newsletter: flat({ openRate: u(0.25, 0.4, 0.55), clickRate: u(0.02, 0.05, 0.12) }),
+  cold_email: flat({ openRate: u(0.15, 0.3, 0.45), clickRate: u(0.005, 0.02, 0.05) }),
 
   // Flat sponsorship: only the click-through is uncertain (reach & fee are set).
   influencer: flat({ linkCtr: u(0.005, 0.015, 0.04) }),
@@ -83,13 +91,19 @@ export const FIXED_DEFAULTS: Record<ChannelType, Record<string, number>> = {
   tiktok_ads: { budget: 1000 },
   linkedin_ads: { budget: 1000 },
   reddit_ads: { budget: 1000 },
+  youtube_ads: { budget: 1000 },
+  pinterest_ads: { budget: 1000 },
+  snapchat_ads: { budget: 1000 },
   google_search: { budget: 1000 },
   bing_ads: { budget: 1000 },
   x_organic: { followers: 1000, numPosts: 1 },
   linkedin_organic: { followers: 1000, numPosts: 1 },
   instagram_organic: { followers: 1000, numPosts: 1 },
   tiktok_organic: { followers: 1000, numPosts: 1 },
+  product_hunt: { reach: 8000 },
+  seo_content: { searchVolume: 10000 },
   newsletter: { listSize: 5000 },
+  cold_email: { listSize: 2000 },
   influencer: { reach: 50000, cost: 500 },
 };
 
@@ -98,13 +112,19 @@ export const CHANNEL_TYPES: ChannelType[] = [
   'tiktok_ads',
   'linkedin_ads',
   'reddit_ads',
+  'youtube_ads',
+  'pinterest_ads',
+  'snapchat_ads',
   'google_search',
   'bing_ads',
   'x_organic',
   'linkedin_organic',
   'instagram_organic',
   'tiktok_organic',
+  'product_hunt',
+  'seo_content',
   'newsletter',
+  'cold_email',
   'influencer',
 ];
 
@@ -113,13 +133,19 @@ export const CHANNEL_LABELS: Record<ChannelType, string> = {
   tiktok_ads: 'TikTok Ads',
   linkedin_ads: 'LinkedIn Ads',
   reddit_ads: 'Reddit Ads',
+  youtube_ads: 'YouTube Ads',
+  pinterest_ads: 'Pinterest Ads',
+  snapchat_ads: 'Snapchat Ads',
   google_search: 'Google Search',
   bing_ads: 'Bing Ads',
   x_organic: 'X / Twitter Organic',
   linkedin_organic: 'LinkedIn Organic',
   instagram_organic: 'Instagram Organic',
   tiktok_organic: 'TikTok Organic',
+  product_hunt: 'Product Hunt',
+  seo_content: 'SEO / Content',
   newsletter: 'Newsletter / Email',
+  cold_email: 'Cold Email',
   influencer: 'Influencer / Sponsored',
 };
 
@@ -129,13 +155,19 @@ export const CHANNEL_SHORT_LABELS: Record<ChannelType, string> = {
   tiktok_ads: 'TikTok',
   linkedin_ads: 'LinkedIn',
   reddit_ads: 'Reddit',
+  youtube_ads: 'YouTube',
+  pinterest_ads: 'Pinterest',
+  snapchat_ads: 'Snapchat',
   google_search: 'Google',
   bing_ads: 'Bing',
   x_organic: 'X',
   linkedin_organic: 'LinkedIn',
   instagram_organic: 'Instagram',
   tiktok_organic: 'TikTok',
+  product_hunt: 'Product Hunt',
+  seo_content: 'SEO',
   newsletter: 'Newsletter',
+  cold_email: 'Cold Email',
   influencer: 'Influencer',
 };
 
@@ -172,6 +204,11 @@ export const ASSUMPTION_META: Record<
   linkCtr: { label: 'Link click-through rate', unit: 'percent' },
   openRate: { label: 'Open rate', unit: 'percent', help: 'Recipients who open the email' },
   clickRate: { label: 'Click rate', unit: 'percent', help: 'Openers who click through' },
+  rankCtr: {
+    label: 'Search click share',
+    unit: 'percent',
+    help: 'Share of monthly searches that reach your site',
+  },
   signupRate: { label: 'Signup rate', unit: 'percent', help: 'Visitor → signup' },
   paidConversionRate: { label: 'Paid conversion rate', unit: 'percent', help: 'Signup → paying' },
 };
@@ -189,6 +226,7 @@ export const FIXED_INPUT_META: Record<string, { label: string; unit: 'currency' 
   listSize: { label: 'List size', unit: 'number' },
   reach: { label: 'Estimated reach', unit: 'number' },
   cost: { label: 'Sponsorship fee', unit: 'currency' },
+  searchVolume: { label: 'Monthly search volume', unit: 'number' },
 };
 
 /** Plain-language description of how each channel turns inputs into visitors. */
@@ -197,13 +235,19 @@ export const CHANNEL_FORMULAS: Record<ChannelType, string> = {
   tiktok_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
   linkedin_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
   reddit_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
+  youtube_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
+  pinterest_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
+  snapchat_ads: 'budget ÷ CPM × 1,000 = impressions → × CTR = visitors',
   google_search: 'budget ÷ CPC = visitors',
   bing_ads: 'budget ÷ CPC = visitors',
   x_organic: 'followers × reach rate × posts = impressions → × link CTR = visitors',
   linkedin_organic: 'followers × reach rate × posts = impressions → × link CTR = visitors',
   instagram_organic: 'followers × reach rate × posts = impressions → × link CTR = visitors',
   tiktok_organic: 'followers × reach rate × posts = impressions → × link CTR = visitors',
+  product_hunt: 'estimated reach × link CTR = visitors',
+  seo_content: 'monthly search volume × click share = visitors',
   newsletter: 'list size × open rate × click rate = visitors',
+  cold_email: 'list size × open rate × click rate = visitors',
   influencer: 'estimated reach × link CTR = visitors',
 };
 
