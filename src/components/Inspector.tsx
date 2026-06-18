@@ -13,23 +13,14 @@ import { ChannelIcon } from './ChannelIcon';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { RangeReadout } from './RangeReadout';
 import { NumberField } from './NumberField';
-import { Tooltip } from './Tooltip';
+import { InfoDot } from './InfoDot';
+import { MessageCheck } from './MessageCheck';
 import { formatCount, type ValueKind } from '../lib/format';
 
 type Unit = 'currency' | 'percent' | 'number';
 
 function unitToKind(unit: Unit): Exclude<ValueKind, 'count'> {
   return unit === 'currency' ? 'money' : unit;
-}
-
-function InfoDot({ text }: { text: string }) {
-  return (
-    <Tooltip content={text} widthClass="w-52">
-      <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-500">
-        ?
-      </span>
-    </Tooltip>
-  );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -327,6 +318,9 @@ export function Inspector({ node, vertical }: { node: ChannelNode; vertical: Ver
             />
           </div>
         </section>
+
+        {/* Optional qualitative message check (organic only, §11) */}
+        {!meta.paid && <MessageCheck channelLabel={node.label} />}
 
         {/* Danger zone */}
         <button

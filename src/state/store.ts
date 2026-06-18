@@ -74,6 +74,7 @@ export interface CanvasState {
   setVertical: (vertical: Vertical) => void;
   reseedAllNodes: (vertical: Vertical) => void;
   resetProject: () => void;
+  importProject: (project: Project) => void;
 }
 
 const initialProject = loadProject() ?? createDefaultProject();
@@ -224,6 +225,12 @@ export const useStore = create<CanvasState>((set, get) => ({
   resetProject: () => {
     const project = createDefaultProject();
     set({ project, selectedNodeId: null });
+    get().recompute();
+  },
+
+  importProject: (project) => {
+    // Replace the whole project (e.g. from an imported JSON file) and recompute.
+    set({ project: { ...project, updatedAt: nowIso() }, selectedNodeId: null });
     get().recompute();
   },
 }));

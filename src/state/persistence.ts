@@ -12,7 +12,7 @@ function hasStorage(): boolean {
 }
 
 /** Minimal shape check so a corrupt/old payload can't crash the app. */
-function isValidProject(value: unknown): value is Project {
+export function isValidProject(value: unknown): value is Project {
   if (!value || typeof value !== 'object') return false;
   const p = value as Record<string, unknown>;
   return (

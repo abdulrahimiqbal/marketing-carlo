@@ -89,6 +89,26 @@ describe('store lifecycle', () => {
     expect(useStore.getState().project.nodes).toHaveLength(0);
   });
 
+  it('importProject replaces the project, clears selection, and recomputes', () => {
+    const st = useStore.getState();
+    st.addNode('meta_ads');
+    const imported = {
+      id: 'imp',
+      name: 'Imported',
+      vertical: 'ecommerce' as const,
+      nodes: [],
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+    };
+    st.importProject(imported);
+    const s = useStore.getState();
+    expect(s.project.name).toBe('Imported');
+    expect(s.project.vertical).toBe('ecommerce');
+    expect(s.project.nodes).toHaveLength(0);
+    expect(s.selectedNodeId).toBeNull();
+    expect(s.summary.total.payingUsers.p50).toBe(0);
+  });
+
   it('moving a node does not change its computed numbers', () => {
     const st = useStore.getState();
     st.addNode('meta_ads');

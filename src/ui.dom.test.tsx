@@ -73,6 +73,8 @@ describe('Inspector shows results with range + badge + actuals (§7.2, §10)', (
     expect(screen.getAllByText('Paying users').length).toBeGreaterThan(0);
     expect(screen.getByText('Cost per paying user')).toBeTruthy();
     expect(screen.getByText(/Actuals/i)).toBeTruthy();
+    // The §11 message check is organic-only — not shown on paid nodes.
+    expect(screen.queryByText('Message check')).toBeNull();
   });
 
   it('organic node shows the high-variance explainer and omits cost-per-paying', () => {
@@ -81,6 +83,9 @@ describe('Inspector shows results with range + badge + actuals (§7.2, §10)', (
     render(<Inspector node={node} vertical="b2b_saas" />);
     expect(screen.getByText('Estimated · high variance')).toBeTruthy();
     expect(screen.getByText(/no spend/i)).toBeTruthy();
+    // The §11 qualitative message check appears on organic nodes.
+    expect(screen.getByText('Message check')).toBeTruthy();
+    expect(screen.getByText('Qualitative check')).toBeTruthy();
   });
 
   it('editing the budget updates the displayed cost basis live', () => {

@@ -23,9 +23,14 @@ draws, triangular distributions, seeded RNG for reproducibility).
 - **The paid/organic seam** — campaign totals always show paid and organic subtotals separately.
 - **Manual actuals** — after launch, enter real numbers for an honest estimate-vs-actual
   side-by-side.
+- **Data safety** — an error boundary so a runtime error can't white-screen the app, plus JSON
+  export / import and a "start over" action (localStorage is per-device).
+- **Optional message check** (§11) — on organic nodes, paste a draft post for a _qualitative_ read
+  (resonance / misread risk / sharper rewrite). It never produces or modifies any numbers and is
+  off unless an Anthropic API key is configured (see below).
 
-Explicitly **out of scope** in v1 (reserved for v2): the behavioral agent simulation, the optional
-LLM message-check, auth/multi-user, and live ad-platform integration.
+Explicitly **out of scope** in v1 (reserved for v2): the behavioral agent simulation,
+auth/multi-user, and live ad-platform integration.
 
 ## Tech stack
 
@@ -67,6 +72,21 @@ Express server (`server.js`) serves `dist/` on the port Railway provides (`$PORT
 
 That's it. On deploy, Railway runs `npm ci` → `npm run build` → `npm start`, and the app is live.
 No API keys are shipped in the client bundle.
+
+### Optional: enable the §11 message check
+
+The message check calls the Anthropic API from a server route (`/api/message-check` in `server.js`),
+keeping the key server-side. It is **off by default** — without a key, the endpoint returns a
+friendly "not enabled" response and the rest of the app is unaffected.
+
+To turn it on, add a Railway **service variable**:
+
+- `ANTHROPIC_API_KEY` — your Anthropic API key (required to enable the feature)
+- `ANTHROPIC_MODEL` — optional model override (defaults to `claude-opus-4-8`)
+
+No key is ever read by or shipped to the browser. The check is qualitative only and never produces
+or modifies any numbers. For local development, set `ANTHROPIC_API_KEY` and run `npm start`
+alongside `npm run dev` (Vite proxies `/api` to the local server).
 
 > **Why a server at all?** The PRD targeted Vercel static hosting. Railway runs a process rather
 > than serving a static directory, so we add a minimal static file server. The application logic is

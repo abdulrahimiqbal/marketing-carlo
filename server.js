@@ -4,6 +4,7 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { messageCheckHandler } from './api/message-check.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, 'dist');
@@ -13,6 +14,9 @@ const app = express();
 
 // Health check for Railway.
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+
+// Optional §11 LLM message check (qualitative only; requires ANTHROPIC_API_KEY).
+app.post('/api/message-check', express.json({ limit: '64kb' }), messageCheckHandler);
 
 // Hashed asset filenames can be cached aggressively; index.html must not be.
 app.use(
