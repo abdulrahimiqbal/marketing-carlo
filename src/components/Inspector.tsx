@@ -1,11 +1,13 @@
 // Node inspector (§7.2). Fixed inputs, editable triangular assumptions, full
 // results, the organic high-variance explainer, and manual actuals (§10).
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../state/store';
-import { CHANNEL_META } from '../engine/funnel';
+import { CHANNEL_META, isPaid } from '../engine/funnel';
+import { simulateNodeDetail } from '../engine/simulate';
 import type { ChannelNode, Uncertain, Vertical } from '../engine/types';
 import {
   ASSUMPTION_META,
+  CHANNEL_FORMULAS,
   ECOMMERCE_STAGE_OVERRIDES,
   FIXED_INPUT_META,
 } from '../benchmarks/presets';
@@ -13,23 +15,16 @@ import { ChannelIcon } from './ChannelIcon';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { RangeReadout } from './RangeReadout';
 import { NumberField } from './NumberField';
-import { Tooltip } from './Tooltip';
+import { InfoDot } from './InfoDot';
+import { MessageCheck } from './MessageCheck';
+import { DistributionChart } from './DistributionChart';
+import { SensitivityChart } from './SensitivityChart';
 import { formatCount, type ValueKind } from '../lib/format';
 
 type Unit = 'currency' | 'percent' | 'number';
 
 function unitToKind(unit: Unit): Exclude<ValueKind, 'count'> {
   return unit === 'currency' ? 'money' : unit;
-}
-
-function InfoDot({ text }: { text: string }) {
-  return (
-    <Tooltip content={text} widthClass="w-52">
-      <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-500">
-        ?
-      </span>
-    </Tooltip>
-  );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -186,15 +181,29 @@ export function Inspector({ node, vertical }: { node: ChannelNode; vertical: Ver
   const removeNode = useStore((s) => s.removeNode);
   const selectNode = useStore((s) => s.selectNode);
 
+  // Rich detail (distribution + sensitivity) — recompute only when the numbers
+  // change, not when the node is moved or renamed.
+  const detail = useMemo(
+    () => simulateNodeDetail(node),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [node.id, node.type, JSON.stringify(node.fixedInputs), JSON.stringify(node.assumptions)],
+  );
+
   if (!results) return null;
 
   const meta = CHANNEL_META[node.type];
+  const paid = isPaid(node.type);
   const isEcom = vertical === 'ecommerce';
-  const tone = meta.paid ? 'paid' : 'organic';
+  const tone = paid ? 'paid' : 'organic';
 
   const signupsLabel = isEcom ? 'Add-to-cart' : 'Signups';
   const payingLabel = isEcom ? 'Purchases' : 'Paying users';
   const costLabel = isEcom ? 'Cost per purchase' : 'Cost per paying user';
+
+  const labelOf = (key: string): string => {
+    if (isEcom && ECOMMERCE_STAGE_OVERRIDES[key]) return ECOMMERCE_STAGE_OVERRIDES[key].label;
+    return ASSUMPTION_META[key]?.label ?? key;
+  };
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -219,14 +228,17 @@ export function Inspector({ node, vertical }: { node: ChannelNode; vertical: Ver
             ✕
           </button>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-2">
           <ConfidenceBadge confidence={results.confidence} />
         </div>
+        <p className="mt-1.5 font-mono text-[10px] leading-snug text-slate-400">
+          {CHANNEL_FORMULAS[node.type]}
+        </p>
       </div>
 
       <div className="space-y-6 px-4 py-4">
         {/* Organic explainer (§7.2 / §8) */}
-        {!meta.paid && (
+        {!paid && (
           <div className="rounded-lg border border-organic-200 bg-organic-50 px-3 py-2.5 text-xs leading-relaxed text-organic-700">
             Organic reach is a power-law lottery — one large reshare can swing this 10×. The range
             is wide on purpose. v1 estimates this; it does not yet simulate audience behavior.
@@ -309,6 +321,27 @@ export function Inspector({ node, vertical }: { node: ChannelNode; vertical: Ver
           </div>
         </section>
 
+        {/* Distribution — the real Monte Carlo output shape */}
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <SectionTitle>Distribution · {formatCount(detail.draws)} simulations</SectionTitle>
+            <span className="text-[10px] text-slate-400">
+              spread {Math.round(detail.relativeSpread * 100)}% of P50
+            </span>
+          </div>
+          <div className="rounded-lg border border-slate-100 p-3">
+            <DistributionChart detail={detail} tone={tone} />
+          </div>
+        </section>
+
+        {/* Sensitivity — what drives the uncertainty */}
+        <section>
+          <SectionTitle>What drives the uncertainty</SectionTitle>
+          <div className="rounded-lg border border-slate-100 p-3">
+            <SensitivityChart sensitivity={detail.sensitivity} labelOf={labelOf} tone={tone} />
+          </div>
+        </section>
+
         {/* Actuals (§10) */}
         <section>
           <SectionTitle>Actuals (after launch)</SectionTitle>
@@ -327,6 +360,9 @@ export function Inspector({ node, vertical }: { node: ChannelNode; vertical: Ver
             />
           </div>
         </section>
+
+        {/* Optional qualitative message check (organic only, §11) */}
+        {!paid && <MessageCheck channelLabel={node.label} />}
 
         {/* Danger zone */}
         <button

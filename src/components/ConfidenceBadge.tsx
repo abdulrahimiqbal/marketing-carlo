@@ -19,7 +19,7 @@ export const BADGE_COPY: Record<Confidence, BadgeCopy> = {
   estimated_high_variance: {
     text: 'Estimated · high variance',
     tooltip:
-      'Organic reach is a power-law lottery — one large reshare can swing this 10×. The range here is wide on purpose. v1 estimates this; it does not yet simulate audience behavior.',
+      'Organic and earned reach is a power-law lottery — a viral post, a search-ranking change, or a launch-day spike can swing this 10×. The range here is wide on purpose. v1 estimates this; it does not yet simulate audience behavior.',
     tone: 'organic',
   },
   // Reserved for the v2 behavioral engine — not emitted in v1.

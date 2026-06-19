@@ -7,7 +7,7 @@ import { ConfidenceBadge } from '../components/ConfidenceBadge';
 import { RangeBar } from '../components/RangeBar';
 import { ChannelIcon } from '../components/ChannelIcon';
 import { formatCount, formatMoney } from '../lib/format';
-import { CHANNEL_META } from '../engine/funnel';
+import { isPaid } from '../engine/funnel';
 
 export function ChannelNodeCard({ id }: NodeProps) {
   const node = useStore((s) => s.project.nodes.find((n) => n.id === id));
@@ -17,7 +17,7 @@ export function ChannelNodeCard({ id }: NodeProps) {
 
   if (!node || !results) return null;
 
-  const paid = CHANNEL_META[node.type].paid;
+  const paid = isPaid(node.type);
   const paying = results.payingUsers;
   const actualPaying = node.actuals?.payingUsers;
 

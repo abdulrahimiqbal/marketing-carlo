@@ -12,11 +12,14 @@ import type {
   ChannelNode,
   ChannelResults,
   Confidence,
+  HistogramBin,
+  NodeDetail,
   Range,
+  SensitivityEntry,
   SimulationOutput,
 } from './types';
 import { hashString, mulberry32, sampleTriangular } from './rng';
-import { CHANNEL_META, runFunnel, totalSpendFor } from './funnel';
+import { CHANNEL_META, isPaid, runFunnel, totalSpendFor } from './funnel';
 
 export const N_DRAWS = 2000;
 
@@ -89,10 +92,7 @@ export function simulateNodeDraws(node: ChannelNode, N: number = N_DRAWS): NodeD
         sampled[key] = 0;
         continue;
       }
-      // Normalize bounds so out-of-order user edits can't produce NaN.
-      const lo = Math.min(u.low, u.high);
-      const hi = Math.max(u.low, u.high);
-      const mode = Math.min(Math.max(u.expected, lo), hi);
+      const [lo, mode, hi] = normBounds(u);
       sampled[key] = sampleTriangular(lo, mode, hi, rng());
     }
     const draw = runFunnel(node.type, node.fixedInputs, sampled);
@@ -102,6 +102,14 @@ export function simulateNodeDraws(node: ChannelNode, N: number = N_DRAWS): NodeD
   }
 
   return { visitors, signups, payingUsers };
+}
+
+/** Normalize a triangular's bounds so out-of-order user edits can't make NaN. */
+function normBounds(u: { low: number; expected: number; high: number }): [number, number, number] {
+  const lo = Math.min(u.low, u.high);
+  const hi = Math.max(u.low, u.high);
+  const mode = Math.min(Math.max(u.expected, lo), hi);
+  return [lo, mode, hi];
 }
 
 /** Per-draw cost array for a paid group: spend / payingUsers, skipping 0 draws. */
@@ -119,7 +127,7 @@ export function summarizeDraws(node: ChannelNode, draws: NodeDraws): ChannelResu
   const meta = CHANNEL_META[node.type];
   const totalSpend = totalSpendFor(node.type, node.fixedInputs);
   const costDraws = costPerPayingDraws(totalSpend, draws.payingUsers);
-  const confidence: Confidence = meta.paid ? 'estimated' : 'estimated_high_variance';
+  const confidence: Confidence = meta.confidence;
 
   return {
     visitors: toRange(draws.visitors),
@@ -188,8 +196,9 @@ export function simulateCampaign(nodes: ChannelNode[], N: number = N_DRAWS): Sim
     nodeResults[node.id] = summarizeDraws(node, draws);
   }
 
-  const paidGroup = withDraws.filter((w) => CHANNEL_META[w.node.type].paid);
-  const organicGroup = withDraws.filter((w) => !CHANNEL_META[w.node.type].paid);
+  // "Paid" = spend-backed; the other group is everything free (organic + owned).
+  const paidGroup = withDraws.filter((w) => isPaid(w.node.type));
+  const organicGroup = withDraws.filter((w) => !isPaid(w.node.type));
 
   const summary: CampaignSummary = {
     total: aggregateGroup(withDraws, N),
@@ -198,4 +207,97 @@ export function simulateCampaign(nodes: ChannelNode[], N: number = N_DRAWS): Sim
   };
 
   return { nodeResults, summary };
+}
+
+// ---------------------------------------------------------------------------
+// On-demand detail for a selected node: the real distribution shape + a
+// variance-based sensitivity rank. This surfaces what the engine actually did.
+// ---------------------------------------------------------------------------
+
+/**
+ * Draw the paying-users array, optionally pinning one assumption to its mode.
+ * The RNG is always consumed for every key so baseline and pinned variants use
+ * common random numbers — the only difference is the pinned variable.
+ */
+function drawPaying(node: ChannelNode, N: number, pinned?: string): number[] {
+  const meta = CHANNEL_META[node.type];
+  const rng = mulberry32(hashString(nodeSeedString(node)));
+  const out = new Array<number>(N);
+  const s: Record<string, number> = {};
+  for (let i = 0; i < N; i++) {
+    for (const key of meta.assumptionKeys) {
+      const u = node.assumptions[key];
+      if (!u) {
+        s[key] = 0;
+        continue;
+      }
+      const [lo, mode, hi] = normBounds(u);
+      const sample = sampleTriangular(lo, mode, hi, rng()); // always consume rng
+      s[key] = key === pinned ? mode : sample;
+    }
+    out[i] = runFunnel(node.type, node.fixedInputs, s).payingUsers;
+  }
+  return out;
+}
+
+function buildHistogram(values: number[], bins = 24): HistogramBin[] {
+  const sorted = values.slice().sort((a, b) => a - b);
+  // Cap the top edge at P98 so a single long-shot draw doesn't flatten the view;
+  // overflow lands in the last bin (the upside is still represented).
+  const hi = Math.max(percentile(sorted, 0.98), 1e-9);
+  const width = hi / bins;
+  const out: HistogramBin[] = [];
+  for (let b = 0; b < bins; b++) {
+    out.push({ x0: b * width, x1: (b + 1) * width, count: 0 });
+  }
+  for (const v of values) {
+    const idx = Math.min(bins - 1, Math.max(0, Math.floor(v / width)));
+    out[idx].count += 1;
+  }
+  return out;
+}
+
+/**
+ * Rank assumptions by how much each drives the spread. Pinning an assumption to
+ * its mode (common random numbers) collapses the part of the P10–P90 spread it
+ * was responsible for; we normalize those reductions into shares that sum to 1.
+ */
+function computeSensitivity(node: ChannelNode, N: number, baseWidth: number): SensitivityEntry[] {
+  const keys = CHANNEL_META[node.type].assumptionKeys.filter((k) => {
+    const u = node.assumptions[k];
+    return u && u.low !== u.high; // a fixed assumption contributes no spread
+  });
+
+  const raw = keys.map((key) => {
+    const pinned = drawPaying(node, N, key).sort((a, b) => a - b);
+    const pinnedWidth = percentile(pinned, 0.9) - percentile(pinned, 0.1);
+    return { key, reduction: Math.max(0, baseWidth - pinnedWidth) };
+  });
+
+  const total = raw.reduce((acc, r) => acc + r.reduction, 0);
+  return raw
+    .map((r) => ({ key: r.key, contribution: total > 0 ? r.reduction / total : 0 }))
+    .sort((a, b) => b.contribution - a.contribution);
+}
+
+export function simulateNodeDetail(node: ChannelNode, N: number = N_DRAWS): NodeDetail {
+  const paying = drawPaying(node, N);
+  const sorted = paying.slice().sort((a, b) => a - b);
+  const range: Range = {
+    p10: percentile(sorted, 0.1),
+    p50: percentile(sorted, 0.5),
+    p90: percentile(sorted, 0.9),
+  };
+  const mean = paying.reduce((acc, v) => acc + v, 0) / (paying.length || 1);
+  const baseWidth = range.p90 - range.p10;
+  const relativeSpread = range.p50 > 0 ? baseWidth / range.p50 : 0;
+
+  return {
+    draws: N,
+    histogram: buildHistogram(paying),
+    mean,
+    range,
+    relativeSpread,
+    sensitivity: computeSensitivity(node, N, baseWidth),
+  };
 }

@@ -13,19 +13,34 @@ estimate without showing the seam.
 
 ## What's in v1
 
-A single **deterministic funnel engine** applied across all channels (Meta Ads, Google Search, X
-organic), with channel-tuned, benchmark-seeded assumptions and a **Monte Carlo range** (2,000
-draws, triangular distributions, seeded RNG for reproducibility).
+A single **deterministic funnel engine** applied across an **18-channel library**, with channel-tuned,
+benchmark-seeded assumptions and a **Monte Carlo range** (2,000 draws, triangular distributions,
+seeded RNG for reproducibility).
 
+- **Channel library** — Paid: Meta, TikTok, LinkedIn, Reddit, YouTube, Pinterest, Snapchat (CPM),
+  Google, Bing (CPC), Influencer (flat sponsorship). Organic: X, LinkedIn, Instagram, TikTok,
+  Product Hunt (launch spike), SEO / Content. Owned: Newsletter, Cold email. New channels are data,
+  not code — each maps to a funnel archetype (CPM / CPC / reach / email / flat-reach / search-volume).
+- **Shareable links** — encode a whole campaign into the URL hash to share or bookmark across
+  devices, no backend required.
 - **Honest ranges** — every result is reported as P10 / P50 / P90, never a lone integer.
-- **Confidence badges** — paid channels are "Estimated · assumption-based"; organic is
-  "Estimated · high variance." Badges describe what the engine _actually did_.
-- **The paid/organic seam** — campaign totals always show paid and organic subtotals separately.
+- **See the engine work** — each node shows the real **distribution** of its 2,000 draws and a
+  **sensitivity** rank ("what drives the uncertainty" — pin that first). A live status reflects each
+  re-simulation, and a "How it works" panel explains the method (and its limits) in plain language.
+- **Confidence badges** — describe what the engine _actually did_, per channel: paid ads and email
+  are "Estimated · assumption-based"; organic reach and influencer are "Estimated · high variance."
+- **The paid/organic seam** — campaign totals always show paid and free (organic + owned) subtotals
+  separately; never blended into one number.
 - **Manual actuals** — after launch, enter real numbers for an honest estimate-vs-actual
   side-by-side.
+- **Data safety** — an error boundary so a runtime error can't white-screen the app, plus JSON
+  export / import and a "start over" action (localStorage is per-device).
+- **Optional message check** (§11) — on organic nodes, paste a draft post for a _qualitative_ read
+  (resonance / misread risk / sharper rewrite). It never produces or modifies any numbers and is
+  off unless an Anthropic API key is configured (see below).
 
-Explicitly **out of scope** in v1 (reserved for v2): the behavioral agent simulation, the optional
-LLM message-check, auth/multi-user, and live ad-platform integration.
+Explicitly **out of scope** in v1 (reserved for v2): the behavioral agent simulation,
+auth/multi-user, and live ad-platform integration.
 
 ## Tech stack
 
@@ -68,9 +83,33 @@ Express server (`server.js`) serves `dist/` on the port Railway provides (`$PORT
 That's it. On deploy, Railway runs `npm ci` → `npm run build` → `npm start`, and the app is live.
 No API keys are shipped in the client bundle.
 
+### Optional: enable the §11 message check
+
+The message check calls the Anthropic API from a server route (`/api/message-check` in `server.js`),
+keeping the key server-side. It is **off by default** — without a key, the endpoint returns a
+friendly "not enabled" response and the rest of the app is unaffected.
+
+To turn it on, add a Railway **service variable**:
+
+- `ANTHROPIC_API_KEY` — your Anthropic API key (required to enable the feature)
+- `ANTHROPIC_MODEL` — optional model override (defaults to `claude-opus-4-8`)
+
+No key is ever read by or shipped to the browser. The check is qualitative only and never produces
+or modifies any numbers. For local development, set `ANTHROPIC_API_KEY` and run `npm start`
+alongside `npm run dev` (Vite proxies `/api` to the local server).
+
 > **Why a server at all?** The PRD targeted Vercel static hosting. Railway runs a process rather
 > than serving a static directory, so we add a minimal static file server. The application logic is
-> still 100% client-side — `server.js` only serves files.
+> still 100% client-side — `server.js` only serves files (plus the optional message-check route).
+
+### Operations
+
+- **Security headers** — `server.js` sets a tight Content-Security-Policy, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, and HSTS, and disables `X-Powered-By`.
+- **Analytics / error monitoring** — `src/lib/analytics.ts` is a no-op hook point. To enable a
+  provider (Plausible, PostHog, Sentry, …) wire it there and add its domain to the CSP `script-src` /
+  `connect-src` in `server.js`. `track()` already fires on key events; `reportError()` is called by
+  the error boundary.
 
 ### Manual deploy via the Railway CLI (optional)
 

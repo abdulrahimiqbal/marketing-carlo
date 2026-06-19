@@ -5,6 +5,8 @@ import { Toolbar } from './components/Toolbar';
 import { CampaignSummary } from './components/CampaignSummary';
 import { Canvas } from './canvas/Canvas';
 import { Inspector } from './components/Inspector';
+import { ProjectActions } from './components/ProjectActions';
+import { SmallScreenNotice } from './components/SmallScreenNotice';
 
 export default function App() {
   const selectedNodeId = useStore((s) => s.selectedNodeId);
@@ -21,6 +23,7 @@ export default function App() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <CampaignSummary />
         </div>
+        <ProjectActions />
       </aside>
 
       {/* Canvas */}
@@ -34,6 +37,8 @@ export default function App() {
           <Inspector node={selectedNode} vertical={vertical} />
         </aside>
       )}
+
+      <SmallScreenNotice />
     </div>
   );
 }

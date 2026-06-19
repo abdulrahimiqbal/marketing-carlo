@@ -15,6 +15,7 @@ import { simulateCampaign } from '../engine/simulate';
 import { createChannelNode, benchmarkFor } from '../benchmarks/presets';
 import { genId } from '../lib/id';
 import { loadProject, saveProjectDebounced } from './persistence';
+import { loadSharedProject, clearShareHash } from '../lib/share';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -52,6 +53,8 @@ export interface CanvasState {
   nodeResults: Record<string, ChannelResults>;
   summary: CampaignSummary;
   selectedNodeId: string | null;
+  /** Increments on every recompute — lets the UI reflect each real re-simulation. */
+  simSeq: number;
 
   // derived recompute
   recompute: () => void;
@@ -74,9 +77,14 @@ export interface CanvasState {
   setVertical: (vertical: Vertical) => void;
   reseedAllNodes: (vertical: Vertical) => void;
   resetProject: () => void;
+  importProject: (project: Project) => void;
 }
 
-const initialProject = loadProject() ?? createDefaultProject();
+// A shared link (URL hash) wins over local storage; clear it so refresh/edits
+// don't reload the shared copy over the user's subsequent work.
+const sharedProject = loadSharedProject();
+if (sharedProject) clearShareHash();
+const initialProject = sharedProject ?? loadProject() ?? createDefaultProject();
 const initialSim = simulateCampaign(initialProject.nodes);
 
 export const useStore = create<CanvasState>((set, get) => ({
@@ -84,11 +92,12 @@ export const useStore = create<CanvasState>((set, get) => ({
   nodeResults: initialSim.nodeResults,
   summary: initialSim.summary,
   selectedNodeId: null,
+  simSeq: 0,
 
   recompute: () => {
-    const { project } = get();
+    const { project, simSeq } = get();
     const { nodeResults, summary } = simulateCampaign(project.nodes);
-    set({ nodeResults, summary });
+    set({ nodeResults, summary, simSeq: simSeq + 1 });
   },
 
   addNode: (type) => {
@@ -163,20 +172,19 @@ export const useStore = create<CanvasState>((set, get) => ({
   },
 
   resetAssumptionToBenchmark: (id, key) => {
-    set((state) => {
-      const bench = benchmarkFor(state.project.vertical, key);
-      if (!bench) return state;
-      return {
-        project: {
-          ...state.project,
-          nodes: mapNode(state.project.nodes, id, (n) => ({
-            ...n,
-            assumptions: { ...n.assumptions, [key]: bench },
-          })),
-          updatedAt: nowIso(),
-        },
-      };
-    });
+    set((state) => ({
+      project: {
+        ...state.project,
+        nodes: mapNode(state.project.nodes, id, (n) => ({
+          ...n,
+          assumptions: {
+            ...n.assumptions,
+            [key]: benchmarkFor(n.type, state.project.vertical, key),
+          },
+        })),
+        updatedAt: nowIso(),
+      },
+    }));
     get().recompute();
   },
 
@@ -224,6 +232,12 @@ export const useStore = create<CanvasState>((set, get) => ({
   resetProject: () => {
     const project = createDefaultProject();
     set({ project, selectedNodeId: null });
+    get().recompute();
+  },
+
+  importProject: (project) => {
+    // Replace the whole project (e.g. from an imported JSON file) and recompute.
+    set({ project: { ...project, updatedAt: nowIso() }, selectedNodeId: null });
     get().recompute();
   },
 }));

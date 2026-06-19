@@ -4,6 +4,7 @@
 import { useStore } from '../state/store';
 import type { CampaignTotals } from '../engine/types';
 import { RangeReadout } from './RangeReadout';
+import { InfoDot } from './InfoDot';
 import { formatMoney, formatRangeProse } from '../lib/format';
 
 function SplitRow({
@@ -73,10 +74,18 @@ export function CampaignSummary() {
         />
         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-xs text-slate-600">
           <span>{formatMoney(total.totalSpend)} total spend</span>
-          <span>
-            {total.costPerPayingUser
-              ? `blended ${formatRangeProse(total.costPerPayingUser, 'money')}/paying`
-              : '—'}
+          <span className="flex items-center gap-1">
+            {total.costPerPayingUser ? (
+              <>
+                blended {formatRangeProse(total.costPerPayingUser, 'money')}/paying
+                <InfoDot
+                  widthClass="w-60"
+                  text="Blended CAC: total paid spend ÷ ALL paying users, including organic conversions. It is lower than the paid-only cost-per-paying below because organic customers are 'free' here. Use the paid subtotal for true paid efficiency."
+                />
+              </>
+            ) : (
+              '—'
+            )}
           </span>
         </div>
       </div>
